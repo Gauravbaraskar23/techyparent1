@@ -1,14 +1,17 @@
 import React from "react";
+import { View } from "react-native";
 import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
-import { Ionicons, MaterialIcons } from "@expo/vector-icons";
+import { Ionicons } from "@expo/vector-icons";
+
 import DashboardScreen from "../screens/DashboardScreen";
 import ScreenTimeScreen from "../screens/ScreenTimeScreen";
 import GoalsScreen from "../screens/GoalsScreen";
 import LearningSuggestionsScreen from "../screens/LearningSuggestionsScreen";
-import VideoPlayerScreen from "../screens/VideoPlayerScreen"
 import FamilyBondingScreen from "../screens/FamilyBondingScreen";
 import ReportsScreen from "../screens/ReportsScreen";
-// import LoginScreen from "../screens/LoginScreen";
+// import NotificationsScreen from "../screens/Notificationsscreen";
+// import NotificationBadge from "../components/NotificationBadge";
+// import DailyRoutineScreen from "../screens/DailyRoutineScreen";
 const Tab = createBottomTabNavigator();
 
 export default function AppNavigator() {
@@ -47,6 +50,13 @@ export default function AppNavigator() {
             case "Reports":
               iconName = "bar-chart-outline";
               break;
+            // case "Routine":
+            //   iconName = "calendar-outline";
+              return (
+                <View>
+                  <Ionicons name={iconName} size={size} color={color} />
+                </View>
+              );
           }
 
           return <Ionicons name={iconName} size={size} color={color} />;
@@ -55,20 +65,13 @@ export default function AppNavigator() {
     >
       <Tab.Screen name="Dashboard" component={DashboardScreen} />
       <Tab.Screen name="Screen Time" component={ScreenTimeScreen} />
+      {/* <Tab.Screen name="Routine" component={DailyRoutineScreen} /> */}
       <Tab.Screen name="Goals" component={GoalsScreen} />
       <Tab.Screen name="Learning" component={LearningSuggestionsScreen} />
       <Tab.Screen name="Family" component={FamilyBondingScreen} />
-       {/* <Tab.Screen
-        name="Family"
-        component={FamilyBondingScreen}
-        options={{
-          title: "Family Bonding",
-          tabBarIcon: ({ color, size }) => (
-            <Ionicons name="people-outline" size={size} color={color} />
-          ),
-        }}
-      /> */}
+      {/* <Tab.Screen name="Notifications" component={NotificationsScreen} /> */}
       <Tab.Screen name="Reports" component={ReportsScreen} />
     </Tab.Navigator>
   );
 }
+

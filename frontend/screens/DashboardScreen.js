@@ -1,50 +1,108 @@
-import React, { useEffect, useState, useCallback } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import {
   View,
   Text,
   TouchableOpacity,
   FlatList,
-  ActivityIndicator,
   RefreshControl,
   StyleSheet,
+  ActivityIndicator,
+  Platform,
+  AppState,
 } from "react-native";
+
+import { useFocusEffect } from "@react-navigation/native";
 import Ionicons from "react-native-vector-icons/Ionicons";
+import { Alert } from "react-native";
 import MaterialIcons from "react-native-vector-icons/MaterialIcons";
 import { ProgressBar } from "react-native-paper";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import NotificationBadge from "../components/NotificationBadge";
+
 
 export default function DashboardScreen({ navigation }) {
-  const [parent, setParent] = useState(null);
-  const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [data, setData] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [selectedChildId, setSelectedChildId] = useState(null);
+  const API_BASE = "http://10.176.131.220:8000/api";
+  const API_URL = `${API_BASE}/dashboard/`; //  CHANGE THIS
 
-  const fetchParentData = async () => {
+  //  FETCH DASHBOARD
+  const fetchDashboard = async () => {
     try {
-      setLoading(true);
-      // 🧠 Replace with your real API endpoint
-      const response = await fetch("http://10.0.2.2:5000/api/parent");
-      const data = await response.json();
-      setParent(data);
+      const token = await AsyncStorage.getItem("access_token");
+
+      const response = await fetch(API_URL, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+      
+      if(!response.ok) {
+        console.log("API Error");
+        return;
+      }
+      const json = await response.json();
+
+      setData(json);
     } catch (error) {
-      console.error("Error fetching parent:", error);
+      console.log("Error:", error);
     } finally {
       setLoading(false);
     }
   };
 
+  useFocusEffect(
+    React.useCallback(() => {
+      fetchDashboard(); //  reload every time screen is focused
+    }, [])
+  );
+
   useEffect(() => {
-    fetchParentData();
+  const loadSelectedChild = async () => {
+    const savedChild = await AsyncStorage.getItem("selectedChildId");
+    if (savedChild) {
+      setSelectedChildId(parseInt(savedChild));
+    }
+  };
+
+  loadSelectedChild();
+}, []);
+
+  useEffect(() => {
+    const handleAppStateChange = async (state) => {
+      if (state === "background" || state === "inactive") {
+        const childId = await AsyncStorage.getItem("selectedChildId");
+        const token = await AsyncStorage.getItem("access_token");
+
+        if (childId) {
+          await fetch(`${API_BASE}/children/${childId}/set-offline/`, {
+            method: "POST",
+            headers: {
+              Authorization: `Bearer ${token}`,
+            },
+          });
+        }
+      }
+    };
+
+    const subscription = AppState.addEventListener("change", handleAppStateChange);
+
+    return () => subscription.remove();
   }, []);
 
   const onRefresh = useCallback(() => {
     setRefreshing(true);
-    fetchParentData().finally(() => setRefreshing(false));
+    fetchDashboard().then(() => setRefreshing(false));
   }, []);
 
-  const handleAddChild = () => {
-    navigation.navigate("AddChild");
+  const handleAddChild = () => navigation.navigate("AddChild");
+  const handleLogout = async () => {
+    await AsyncStorage.removeItem("access_token");
+    navigation.navigate("Login");
   };
 
-  // 🕒 Get dynamic greeting based on time
   const getGreeting = () => {
     const hour = new Date().getHours();
     if (hour < 12) return "Good Morning";
@@ -53,137 +111,254 @@ export default function DashboardScreen({ navigation }) {
     return "Good Night";
   };
 
+  // ⏳ LOADING
+  if (loading) {
+    return (
+      <View style={styles.loader}>
+        <ActivityIndicator size="large" color="#3b82f6" />
+      </View>
+    );
+  }
+
+  // ❌ NO DATA
+  if (!data || !data.parent ) {
+    return (
+      <View style={styles.loader}>
+        <Text>Loading....</Text>
+      </View>
+    );
+  }
+
+  const handleDelete = async (childId) => {
+    const deleteChild = async () => {
+      try {
+        const token = await AsyncStorage.getItem("access_token");
+
+        await fetch(`${API_BASE}/children/${childId}/`, {
+          method: "DELETE",
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        });
+
+        Alert.alert("Deleted", "Child removed successfully");
+
+        fetchDashboard(); // refresh
+      } catch (err) {
+        console.log(err);
+        Alert.alert("Error", "Failed to delete child");
+      }
+    };
+
+    if (Platform.OS === "web") {
+      const confirmDelete = window.confirm("Delete this child?");
+      if (confirmDelete) deleteChild();
+    } else {
+      Alert.alert("Delete Child", "Are you sure?", [
+        { text: "Cancel", style: "cancel" },
+        { text: "Delete", onPress: deleteChild, style: "destructive" },
+      ]);
+    }
+  };
+
+  const handleSelectChild = async (child) => {
+    try {
+      console.log("Selected Child:", child);
+
+      // UI highlight ke liye state update karo
+      setSelectedChildId(child.id);
+
+      // ✅ Save childId
+      await AsyncStorage.setItem("selectedChildId", child.id.toString());
+
+      // ✅ Backend ko batao child online hai
+      const token = await AsyncStorage.getItem("access_token");
+
+      await fetch(`${API_BASE}/children/${child.id}/set-online/`, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+
+      Alert.alert("Success", `${child.name} selected`);
+
+    } catch (error) {
+      console.log(error);
+      Alert.alert("Error", "Failed to select child");
+    }
+  };
+
+
   return (
     <View style={styles.container}>
-      {/* ✅ HEADER */}
+      {/* HEADER */}
       <View style={styles.header}>
         <View>
           <Text style={styles.greeting}>{getGreeting()},</Text>
-          <Text style={styles.name}>
-            {parent?.name ? parent.name : "Parent"}
-          </Text>
-          <Text style={styles.date}>
-            {new Date().toLocaleDateString("en-US", {
-              weekday: "long",
-              month: "short",
-              day: "numeric",
-            })}
-          </Text>
+          <Text style={styles.name}>{data.parent.name}</Text>
+          <Text style={styles.date}>{new Date().toDateString()}</Text>
         </View>
 
-        <View style={styles.headerIcons}>
-          <TouchableOpacity style={styles.iconButton}>
-            <Ionicons name="notifications-outline" size={26} color="#fff" />
-            <View style={styles.badge} />
+        <View style={{ flexDirection: "row", alignItems: "center" }}>
+
+          {/* Daily Routine */}
+          <TouchableOpacity
+              style={{ marginRight: 15 }}
+              onPress={() => navigation.navigate("DailyRoutine")}
+            >
+              <Ionicons name="calendar-outline" size={24} color="#fff" />
           </TouchableOpacity>
 
+          {/* Notifications */}
+          <TouchableOpacity
+            style={styles.iconButton}
+            onPress={() => navigation.navigate("Notifications")}
+          >
+            <View style={{ position: "relative" }}>
+              <Ionicons name="notifications-outline" size={26} color="#fff" />
+              <View style={{ position: "absolute", top: -4, right: -4 }}>
+                {data?.notifications > 0 && (
+                  <NotificationBadge count={data.notifications} />
+                )}
+              </View>
+            </View>
+          </TouchableOpacity>
+
+          {/* Profile */}
           <TouchableOpacity
             style={[styles.iconButton, { marginLeft: 15 }]}
-            onPress={() => navigation.navigate("Login")}
+            onPress={handleLogout}
           >
             <Ionicons name="person-circle-outline" size={30} color="#fff" />
           </TouchableOpacity>
+
+      </View>
+      </View>
+
+      {/* TITLE */}
+      <View style={styles.statsRow}>
+        <Text style={styles.sectionTitle}>Your Children</Text>
+
+        <View style={styles.statsCard}>
+          <Text style={styles.statsText}>
+            {data.statistics.online_children}/
+            {data.statistics.total_children} Online
+          </Text>
         </View>
       </View>
 
-      {/* ✅ SECTION TITLE */}
-      <Text style={styles.sectionTitle}>Your Children</Text>
+      {/* LIST */}
+      <FlatList
+        data={data?.children || []}
+        keyExtractor={(item) => item.id.toString()}
+        refreshControl={
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+        }
+        contentContainerStyle={{ paddingBottom: 100 }}
+        renderItem={({ item }) => {
+          const activity = data?.recent_activities?.find(
+            (a) => a.child === item.id
+          ) || {};
 
-      {/* ✅ CONTENT */}
-      {loading ? (
-        <View style={styles.center}>
-          <ActivityIndicator size="large" color="#3b82f6" />
-          <Text style={{ color: "#666", marginTop: 10 }}>Loading data...</Text>
-        </View>
-      ) : !parent?.children || parent.children.length === 0 ? (
-        <View style={styles.emptyState}>
-          <Text style={styles.emptyText}>
-            No children found.{"\n"}Add your first child using the + button below.
-          </Text>
-        </View>
-      ) : (
-        <FlatList
-          data={parent.children}
-          keyExtractor={(item) => item.id.toString()}
-          refreshControl={
-            <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
-          }
-          showsVerticalScrollIndicator={false}
-          renderItem={({ item }) => {
-            const activity = item.activities?.[0] || {};
-            const goalProgress =
-              activity.goals_total > 0
-                ? activity.goals_completed / activity.goals_total
-                : 0;
-            const screenTimeHours = parseFloat(activity.screen_time) || 0;
+          const progress =
+            activity.goals_total > 0
+              ? activity.goals_completed / activity.goals_total
+              : 0;
 
-            return (
-              <TouchableOpacity
-                onPress={() =>
-                  navigation.navigate("ChildScreenTime", { childId: item.id })
-                }
-              >
-                <View style={styles.childCard}>
-                  <View style={styles.childHeader}>
-                    <View>
-                      <Text style={styles.childName}>{item.name}</Text>
-                      <Text style={styles.childAge}>Age {item.age}</Text>
-                    </View>
-                    <View
-                      style={[
-                        styles.statusBadge,
-                        {
-                          backgroundColor: item.online ? "#dcfce7" : "#fee2e2",
-                        },
-                      ]}
-                    >
-                      <Text
-                        style={{
-                          color: item.online ? "#16a34a" : "#dc2626",
-                          fontWeight: "600",
-                        }}
-                      >
-                        {item.online ? "Online" : "Offline"}
-                      </Text>
-                    </View>
+          return (
+            <TouchableOpacity style={[styles.childCard, selectedChildId === item.id && styles.selectedChildCard]}
+             onPress={() => handleSelectChild(item)}
+            >
+              <View style={styles.childHeader}>
+                <View style={styles.childInfo}>
+                  <View style={styles.avatar}>
+                    <Text style={styles.avatarText}>
+                      {item.name.charAt(0)}
+                    </Text>
                   </View>
 
-                  <View style={styles.activityRow}>
-                    <View style={styles.activityItem}>
-                      <Ionicons name="time-outline" size={20} color="#3b82f6" />
-                      <Text style={styles.activityLabel}>
-                        {screenTimeHours.toFixed(1)}h Screen Time
-                      </Text>
-                    </View>
-
-                    <View style={styles.activityItem}>
-                      <MaterialIcons
-                        name="emoji-events"
-                        size={20}
-                        color="#f59e0b"
-                      />
-                      <Text style={styles.activityLabel}>
-                        {activity.goals_completed}/{activity.goals_total} Goals
-                      </Text>
-                    </View>
-                  </View>
-
-                  <View style={styles.progressContainer}>
-                    <Text style={styles.progressLabel}>Goal Progress</Text>
-                    <ProgressBar
-                      progress={goalProgress}
-                      color="#22c55e"
-                      style={styles.progressBar}
-                    />
+                  <View style={styles.childDetails}>
+                    <Text style={styles.childName}>{item.name}</Text>
+                    <Text style={styles.childAge}>
+                      Age {item.age} • {item.gender}
+                    </Text>
                   </View>
                 </View>
-              </TouchableOpacity>
-            );
-          }}
-        />
-      )}
 
-      {/* ✅ Floating Add Button */}
+                <View style={styles.statusBadge}>
+                  <View
+                    style={[
+                      styles.dot,
+                      { backgroundColor: item.online ? "green" : "gray" },
+                    ]}
+                  />
+                  <Text style={{ color: item.online ? "green" : "gray" }}>
+                    {item.online ? "Online" : "Offline"}
+                  </Text>
+                </View>
+              </View>
+
+              <View style={styles.activityRow}>
+                <View style={styles.activityItem}>
+                  <Ionicons name="time-outline" size={20} color="#3b82f6" />
+                  <Text style={styles.activityLabel}>
+                    {activity.screen_time || 0}h Screen Time
+                  </Text>
+                </View>
+
+                <View style={styles.activityItem}>
+                  <MaterialIcons name="emoji-events" size={20} color="#f59e0b" />
+                  <Text style={styles.activityLabel}>
+                    {activity.goals_completed || 0}/
+                    {activity.goals_total || 0} Goals
+                  </Text>
+                </View>
+              </View>
+
+              <View style={styles.progressContainer}>
+                <View style={styles.progressHeader}>
+                  <Text style={styles.progressLabel}>Goal Progress</Text>
+                  <Text style={styles.progressPercentage}>
+                    {Math.round(progress * 100)}%
+                  </Text>
+                </View>
+                <ProgressBar progress={progress} color="#22c55e" />
+              </View>
+                <View style={{ flexDirection: "row", marginTop: 10 }}>
+        
+        {/* EDIT BUTTON */}
+        <TouchableOpacity
+          style={{ marginRight: 15 }}
+          onPress={() =>
+            navigation.navigate("EditChild", { child: item })
+          }
+        ><Text>
+            Edit <Ionicons name="create-outline" size={22} color="#3b82f6" />
+          </Text>
+        </TouchableOpacity>
+
+        {/* DELETE BUTTON */}
+        <TouchableOpacity
+          onPress={() => handleDelete(item.id)}
+        >
+          <Text>
+            Delete <Ionicons name="trash-outline" size={22} color="red" />
+          </Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity onPress={() => navigation.navigate('SetPin')}>
+          <Text>Set PIN</Text>
+        </TouchableOpacity>
+      
+              
+      </View>
+            </TouchableOpacity>
+          );
+        }}
+      />
+          
+      {/* FAB */}
       <TouchableOpacity style={styles.fab} onPress={handleAddChild}>
         <Ionicons name="add" size={30} color="#fff" />
       </TouchableOpacity>
@@ -191,93 +366,138 @@ export default function DashboardScreen({ navigation }) {
   );
 }
 
+
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: "#f9fafb" },
 
-  // ✅ HEADER
   header: {
-    backgroundColor: "#3b82f6", // same as bottom tab color
-    paddingTop: 55,
-    paddingHorizontal: 20,
-    paddingBottom: 25,
-    borderBottomLeftRadius: 20,
-    borderBottomRightRadius: 20,
+    backgroundColor: "#3b82f6",
+    paddingTop: 60,
+    paddingHorizontal: 22,
+    paddingBottom: 30,
+    borderBottomLeftRadius: 28,
+    borderBottomRightRadius: 28,
     flexDirection: "row",
     justifyContent: "space-between",
-    alignItems: "center",
   },
-  greeting: { fontSize: 18, color: "#fff", marginBottom: 2 },
-  name: { fontSize: 24, fontWeight: "700", color: "#fff", marginBottom: 4 },
-  date: { fontSize: 14, color: "#e0e0e0" },
-  headerIcons: { flexDirection: "row", alignItems: "center" },
-  iconButton: { position: "relative" },
+
+  greeting: { color: "#e0e7ff" },
+  name: { fontSize: 26, fontWeight: "800", color: "#fff" },
+  date: { color: "#dbeafe" },
+
+  headerIcons: { flexDirection: "row" },
+
+  iconButton: {
+    padding: 8,
+    borderRadius: 12,
+    backgroundColor: "rgba(255,255,255,0.2)",
+  },
+
   badge: {
     width: 8,
     height: 8,
-    borderRadius: 4,
-    backgroundColor: "#ef4444",
+    backgroundColor: "red",
     position: "absolute",
     top: 2,
     right: 2,
   },
 
-  // ✅ SECTION TITLE
-  sectionTitle: {
-    fontSize: 20,
-    fontWeight: "800",
-    color: "#333",
-    marginTop: 25,
-    marginBottom: 15,
-    marginLeft: 20,
+  statsRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    margin: 20,
   },
 
-  emptyState: { justifyContent: "center", alignItems: "center", marginTop: 50 },
-  emptyText: { textAlign: "center", color: "#666", fontSize: 15, lineHeight: 22 },
-  center: { justifyContent: "center", alignItems: "center", marginTop: 60 },
+  sectionTitle: { fontSize: 18, fontWeight: "700" },
+
+  statsCard: {
+    backgroundColor: "#e0f2fe",
+    padding: 6,
+    borderRadius: 10,
+  },
+
+  statsText: { fontWeight: "600" },
 
   childCard: {
     backgroundColor: "#fff",
-    borderRadius: 16,
-    padding: 16,
-    marginHorizontal: 20,
-    marginBottom: 15,
-    shadowColor: "#000",
-    shadowOpacity: 0.05,
-    shadowRadius: 4,
-    elevation: 2,
+    margin: 20,
+    padding: 20,
+    borderRadius: 20,
   },
+
   childHeader: {
     flexDirection: "row",
     justifyContent: "space-between",
+  },
+
+  childInfo: { flexDirection: "row" },
+
+
+  selectedChildCard: {
+  borderWidth: 2,
+  borderColor: "#3b82f6",
+  backgroundColor: "#eff6ff",
+},
+
+  avatar: {
+    width: 50,
+    height: 50,
+    borderRadius: 25,
+    backgroundColor: "#e0f2fe",
+    justifyContent: "center",
     alignItems: "center",
   },
-  childName: { fontSize: 18, fontWeight: "700", color: "#111" },
-  childAge: { fontSize: 14, color: "#777", marginTop: 2 },
-  statusBadge: {
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 8,
+
+  avatarText: { fontSize: 20, fontWeight: "700" },
+
+  childDetails: { marginLeft: 10 },
+
+  childName: { fontSize: 18, fontWeight: "800" },
+
+  childAge: { color: "#6b7280" },
+
+  statusBadge: { flexDirection: "row", alignItems: "center" },
+
+  dot: {
+    width: 8,
+    height: 8,
+    backgroundColor: "green",
+    borderRadius: 4,
+    marginRight: 5,
   },
+
   activityRow: {
     flexDirection: "row",
     justifyContent: "space-between",
-    marginTop: 15,
+    marginTop: 20,
   },
+
   activityItem: { flexDirection: "row", alignItems: "center" },
-  activityLabel: { marginLeft: 6, fontSize: 14, color: "#444" },
-  progressContainer: { marginTop: 12 },
-  progressLabel: { fontSize: 13, color: "#666", marginBottom: 4 },
-  progressBar: { height: 8, borderRadius: 5 },
+
+  activityLabel: { marginLeft: 8 },
+
+  progressContainer: { marginTop: 15 },
+
+  progressHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+  },
+
+  progressLabel: { fontSize: 12 },
+
+  progressPercentage: { fontSize: 12 },
+
   fab: {
     position: "absolute",
-    bottom: 25,
-    right: 25,
+    bottom: 20,
+    right: 20,
     backgroundColor: "#3b82f6",
     width: 60,
     height: 60,
     borderRadius: 30,
     justifyContent: "center",
     alignItems: "center",
-    elevation: 6,
   },
 });
+
+ 

@@ -12,6 +12,9 @@ urlpatterns = [
     path('api/learningsuggestions/', include('learningsuggestions.urls')),
     path('api/familybonding/', include('familybonding.urls')),
     path('api/reports/', include('reports.urls')),
+    path("api/notifications/", include("notifications.urls")),
+    path("api/dailyroutine/", include("dailyroutine.urls")),
+    
 ]
 if settings.DEBUG:
     urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)

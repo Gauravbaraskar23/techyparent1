@@ -1,0 +1,10 @@
+{
+  "dependencies": {
+    "@react-native-voice/voice": "^3.2.4",
+    "react-native-element-dropdown": "^2.12.4",
+    "react-native-fs": "^2.20.0",
+    "react-native-intent-launcher": "^0.2.1",
+    "react-native-linking": "^0.0.0",
+    "react-native-pdf": "^7.0.4"
+  }
+}

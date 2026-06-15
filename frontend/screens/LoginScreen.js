@@ -28,7 +28,7 @@ export default function LoginScreen({ navigation }) {
   try {
     setLoading(true);
     const response = await axios.post(
-      'http://172.28.34.220:8000/api/token/',
+      'http://10.176.131.220:8000/api/token/',
       {
         username: email,
         password: password,
@@ -37,16 +37,17 @@ export default function LoginScreen({ navigation }) {
     );
 
     if (response.status === 200 && response.data.access && response.data.refresh) {
-      await AsyncStorage.setItem('access', response.data.access);
-      await AsyncStorage.setItem('refresh', response.data.refresh);
+      await AsyncStorage.setItem('access_token', response.data.access);
+      await AsyncStorage.setItem('refresh_token', response.data.refresh);
 
       setLoading(false);
       console.log('✅ Login successful — navigating to Dashboard');
 
-      navigation.reset({
-        index: 0,
-        routes: [{ name: 'MainTabs' }],
-      });
+      // navigation.reset({
+      //   index: 0,
+      //   routes: [{ name: 'MainTabs' }],
+      // });
+      navigation.replace('MainTabs');
     } else {
       setLoading(false);
       Alert.alert('Login Failed', 'Invalid credentials or response.');
@@ -67,74 +68,7 @@ export default function LoginScreen({ navigation }) {
   }
 };
 
-//   const handleLogin = async () => {
-//   console.log('✅ Login button pressed');
-  
-//   if (!email || !password) {
-//     Alert.alert('Error', 'Please enter email and password');
-//     return;
-//   }
 
-//   try {
-//     setLoading(true);
-//     console.log('📡 Sending login request to Django...');
-
-//     const response = await axios.post(
-//       'http://10.239.126.220:8000/api/token/',
-//       {
-//         username: email,
-//         password: password,
-//       },
-//       { timeout: 8000 }
-//     );
-
-//     // 🔍 Check if valid tokens returned
-//     if (response.status === 200 && response.data.access && response.data.refresh) {
-//       console.log('✅ Login success:', response.data);
-
-//       // Save tokens
-//       await AsyncStorage.setItem('access', response.data.access);
-//       await AsyncStorage.setItem('refresh', response.data.refresh);
-
-//       setLoading(false);
-
-//       // ✅ Redirect only if success
-//       navigation.reset({
-//         index: 0,
-//         routes: [{ name: 'MainTabs' }],
-//       });
-//     } else {
-//       setLoading(false);
-//       Alert.alert('Login Failed', 'Invalid response from server');
-//       console.log('❌ Invalid token response:', response.data);
-//     }
-
-//   } catch (err) {
-//     setLoading(false);
-
-//     if (err.code === 'ECONNABORTED') {
-//       Alert.alert('Timeout', 'Server took too long to respond');
-//       console.log('❌ Request timed out');
-//     } else if (err.message.includes('Network Error')) {
-//       Alert.alert(
-//         'Network Error',
-//         'Cannot reach the server. Make sure Django is running and both devices are on the same Wi-Fi.'
-//       );
-//       console.log('❌ Network error — check IP or server connection');
-//     } else if (err.response) {
-//       // 🔥 Handle 401 invalid credentials
-//       console.log('❌ API error:', err.response.data);
-//       if (err.response.status === 401) {
-//         Alert.alert('Login Failed', 'Invalid username or password');
-//       } else {
-//         Alert.alert('Error', `Server error: ${err.response.status}`);
-//       }
-//     } else {
-//       console.log('❌ Unknown error:', err);
-//       Alert.alert('Error', 'Something went wrong');
-//     }
-//   }
-// };
 
   return (
     <KeyboardAvoidingView
@@ -163,14 +97,14 @@ export default function LoginScreen({ navigation }) {
         <Text style={styles.title}>TechyParent</Text>
         <Text style={styles.subtitle}>Secure Family Digital Management</Text>
           <Text style={styles.welcome}>Welcome Back!</Text>
-        <Text style={styles.label}>Email Address</Text>
+        <Text style={styles.label}>Username</Text>
         <TextInput
           style={styles.input}
-          placeholder="Enter your email"
+          placeholder="Enter your username"
           value={email}
           onChangeText={setEmail}
           autoCapitalize="none"
-          keyboardType="email-address"
+          keyboardType="default"
         />
 
         <Text style={styles.label}>Password</Text>
@@ -216,67 +150,178 @@ export default function LoginScreen({ navigation }) {
   );
 }
 
+
 const styles = StyleSheet.create({
   container: {
     flexGrow: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: '#fff',
+    backgroundColor: '#0f172a', // Dark navy background
     paddingHorizontal: 25,
     paddingVertical: 40,
   },
-  logo: { width: 80, height: 80, marginBottom: 20 },
-  title: { fontSize: 26, fontWeight: 'bold', color: '#1e40af' },
-  subtitle: { fontSize: 14, color: '#6b7280', marginBottom: 30 },
-  label: { alignSelf: 'flex-start', marginBottom: 5, color: '#111827' },
-  input: {
-    width: '100%',
-    borderWidth: 1,
-    borderColor: '#d1d5db',
-    borderRadius: 8,
-    padding: 12,
+
+  backButton: {
+    alignSelf: 'flex-start',
     marginBottom: 15,
   },
-  button: {
-    backgroundColor: '#2563eb',
-    width: '100%',
+
+  backText: {
+    fontSize: 16,
+    color: '#38bdf8',
+    fontWeight: '500',
+  },
+
+  logo: {
+    width: 90,
+    height: 90,
+    marginBottom: 15,
+    borderRadius: 20,
+    backgroundColor: '#1e293b',
     padding: 15,
-    borderRadius: 10,
-    alignItems: 'center',
-    marginTop: 10,
   },
-  buttonText: { color: '#fff', fontWeight: 'bold', fontSize: 16 },
-  footer: { marginVertical: 15, color: '#9ca3af' },
-  socialRow: { flexDirection: 'row', gap: 10 },
-  socialBtn: {
-    borderWidth: 1,
-    borderColor: '#d1d5db',
-    paddingVertical: 8,
-    paddingHorizontal: 20,
-    borderRadius: 8,
+
+  title: {
+    fontSize: 28,
+    fontWeight: 'bold',
+    color: '#ffffff',
+    letterSpacing: 1,
   },
-  signupText: {
-    color: '#2563eb',
-    textDecorationLine: 'underline',
+
+  subtitle: {
+    fontSize: 13,
+    color: '#94a3b8',
+    marginBottom: 25,
+    textAlign: 'center',
   },
 
   welcome: {
-  fontSize: 22,
-  fontWeight: 'bold',
-  color: '#1e3a8a', // a nice deep blue
-  alignSelf: 'flex-start',
-  marginBottom: 5,
-},
+    fontSize: 20,
+    fontWeight: '600',
+    color: '#f1f5f9',
+    alignSelf: 'flex-start',
+    marginBottom: 15,
+  },
 
-backButton: {
-  alignSelf: 'flex-start',
-  marginBottom: 10,
-  marginTop: 20,
-},
-backText: {
-  fontSize: 18,
-  color: '#2563eb',
-  fontWeight: '600',
-},
+  label: {
+    alignSelf: 'flex-start',
+    marginBottom: 6,
+    color: '#cbd5e1',
+    fontSize: 13,
+  },
 
+  input: {
+    width: '100%',
+    backgroundColor: '#1e293b',
+    borderRadius: 12,
+    padding: 14,
+    marginBottom: 18,
+    color: '#ffffff',
+    fontSize: 14,
+  },
+
+  button: {
+    backgroundColor: '#3b82f6',
+    width: '100%',
+    padding: 16,
+    borderRadius: 12,
+    alignItems: 'center',
+    marginTop: 10,
+    elevation: 3,
+  },
+
+  buttonText: {
+    color: '#ffffff',
+    fontWeight: '600',
+    fontSize: 16,
+    letterSpacing: 0.5,
+  },
+
+  footer: {
+    marginVertical: 20,
+    color: '#64748b',
+  },
+
+  socialRow: {
+    flexDirection: 'row',
+    gap: 12,
+  },
+
+  socialBtn: {
+    backgroundColor: '#1e293b',
+    paddingVertical: 10,
+    paddingHorizontal: 25,
+    borderRadius: 10,
+  },
+
+  signupText: {
+    color: '#38bdf8',
+    marginTop: 20,
+    fontWeight: '500',
+  },
 });
+
+// const styles = StyleSheet.create({
+//   container: {
+//     flexGrow: 1,
+//     justifyContent: 'center',
+//     alignItems: 'center',
+//     backgroundColor: '#fff',
+//     paddingHorizontal: 25,
+//     paddingVertical: 40,
+//   },
+//   logo: { width: 80, height: 80, marginBottom: 20 },
+//   title: { fontSize: 26, fontWeight: 'bold', color: '#1e40af' },
+//   subtitle: { fontSize: 14, color: '#6b7280', marginBottom: 30 },
+//   label: { alignSelf: 'flex-start', marginBottom: 5, color: '#111827' },
+//   input: {
+//     width: '100%',
+//     borderWidth: 1,
+//     borderColor: '#d1d5db',
+//     borderRadius: 8,
+//     padding: 12,
+//     marginBottom: 15,
+//   },
+//   button: {
+//     backgroundColor: '#2563eb',
+//     width: '100%',
+//     padding: 15,
+//     borderRadius: 10,
+//     alignItems: 'center',
+//     marginTop: 10,
+//   },
+//   buttonText: { color: '#fff', fontWeight: 'bold', fontSize: 16 },
+//   footer: { marginVertical: 15, color: '#9ca3af' },
+//   socialRow: { flexDirection: 'row', gap: 10 },
+//   socialBtn: {
+//     borderWidth: 1,
+//     borderColor: '#d1d5db',
+//     paddingVertical: 8,
+//     paddingHorizontal: 20,
+//     borderRadius: 8,
+//   },
+//   signupText: {
+//     color: '#2563eb',
+//     textDecorationLine: 'underline',
+//   },
+
+//   welcome: {
+//   fontSize: 22,
+//   fontWeight: 'bold',
+//   color: '#1e3a8a', // a nice deep blue
+//   alignSelf: 'flex-start',
+//   marginBottom: 5,
+// },
+
+// backButton: {
+//   alignSelf: 'flex-start',
+//   marginBottom: 10,
+//   marginTop: 20,
+// },
+// backText: {
+//   fontSize: 18,
+//   color: '#2563eb',
+//   fontWeight: '600',
+// },
+
+// });

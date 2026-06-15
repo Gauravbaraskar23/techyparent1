@@ -1,7 +1,10 @@
 
 
 from pathlib import Path
+import os
+# from dotenv import load_dotenv
 
+# load_dotenv()
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 
@@ -11,11 +14,13 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 
 # SECURITY WARNING: keep the secret key used in production secret!
 SECRET_KEY = 'django-insecure--ut^nwjpzv@$a1$n(3@#e^e2)sm6%rkk%eif!ukabh&kq9wtw!'
-
+# GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
+# print("API KEY:", GEMINI_API_KEY)
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = ['*']
+ALLOWED_HOSTS = ["*", "192.168.1.81", "localhost"]
+
 
 
 # Application definition
@@ -35,7 +40,8 @@ INSTALLED_APPS = [
     'learningsuggestions',
     'familybonding',
     'reports',
-    'milestones',
+    'notifications',
+    'dailyroutine',
 ]
 
 MIDDLEWARE = [
@@ -72,10 +78,22 @@ WSGI_APPLICATION = 'techyparent_backend.wsgi.application'
 # Database
 # https://docs.djangoproject.com/en/5.2/ref/settings/#databases
 
+# DATABASES = {
+#     'default': {
+#         'ENGINE': 'django.db.backends.sqlite3',
+#         'NAME': BASE_DIR / 'db.sqlite3',
+#     }
+# }
+
+# For mysql
 DATABASES = {
-    'default': {
-        'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': BASE_DIR / 'db.sqlite3',
+    "default": {
+        "ENGINE": "django.db.backends.mysql",
+        "NAME": "techyparent",
+        "USER": "gaurav",
+        "PASSWORD": "Baraskar123456",
+        "HOST": "127.0.0.1",
+        "PORT": "3306",      # MySql ka port no. 3306 hota h default
     }
 }
 
