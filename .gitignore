@@ -5,3 +5,7 @@ android/.gradle/
 android/build/
 android/app/build/
 ios/build/
+__pycache__/
+*.pyc
+db.sqlite3
+media/
